@@ -1,190 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aquarium Breeding Hub - Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js.min.js"></script>
-
-    <style>
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 15px; background: #eef2f3; color: #333; padding-bottom: 60px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; border-top: 4px solid #00a8cc; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: #00a8cc; color: white; padding: 15px; border-radius: 12px; text-align: center; }
-        .stat-card p { margin: 5px 0 0; font-size: 20px; font-weight: bold; }
-        button { padding: 14px; border: none; border-radius: 10px; background: #00a8cc; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
-        button.secondary { background: #adb5bd; }
-        button.danger { background: #ff4d4d; width: auto; padding: 6px 12px; font-size: 12px; margin-top: 0; }
-        button.today-btn { background: #20c997; font-size: 11px; padding: 6px; margin-top: 5px; width: 100%; }
-        input, select { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 10px; font-size: 16px; background-color: #f8f9fa; }
-        label { font-size: 11px; font-weight: 700; color: #495057; text-transform: uppercase; display: block; margin-top: 10px; }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; border: 2px solid #00a8cc; }
-        .hidden { display: none; }
-        .nav { display: flex; gap: 5px; position: sticky; top: 0; background: #eef2f3; z-index: 100; padding: 5px 0; }
-        .nav button { flex: 1; font-size: 10px; padding: 12px 2px; margin-top: 0; background: #fff; color: #495057; border: 1px solid #dee2e6; border-radius: 8px; }
-        .nav button.active-tab { background: #00a8cc; color: #fff; border-color: #00a8cc; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th, td { border-bottom: 1px solid #f1f3f5; padding: 10px 5px; text-align: left; }
-        .age-badge { padding: 3px 8px; border-radius: 20px; font-weight: 700; font-size: 10px; }
-        .fry { background: #e3f2fd; color: #0d47a1; }
-        .growout { background: #e8f5e9; color: #1b5e20; }
-        .adult { background: #fff3e0; color: #e65100; }
-    </style>
-</head>
-<body>
-
-    <div class="nav">
-        <button id="btn-scan" class="active-tab" onclick="showTab('scan')">TANK SCAN</button>
-        <button id="btn-data" onclick="showTab('data')">INVENTORY</button>
-        <button id="btn-breeds" onclick="showTab('breeds')">SPECIES</button>
-        <button id="btn-pdf" onclick="showTab('pdf')">LABELS</button>
-    </div>
-
-    <div id="tab-scan" class="tab-content">
-        <div class="stats-grid">
-            <div class="stat-card"><h4>Tanks</h4><p id="stat-total">0</p></div>
-            <div class="stat-card" style="background: #20c997;"><h4>Species</h4><p id="stat-breeds">0</p></div>
-        </div>
-        <div class="card"><div id="reader"></div></div>
-        
-        <div id="capture-form" class="card hidden">
-            <h3 style="margin:0 0 10px 0; color:#00a8cc">Tank: #<span id="display-barcode"></span></h3>
-            <label>Species</label>
-            <select id="breed-dropdown"></select>
-            <label>Hatch Date</label>
-            <input type="date" id="born-date-input">
-            <label>Notes</label>
-            <input type="text" id="unit-input" placeholder="e.g. 50 Fry">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div><label>Water Change</label><input type="date" id="last-wc-input"><button class="today-btn" onclick="setToday('last-wc-input')">✓ Today</button></div>
-                <div><label>Last Fed</label><input type="date" id="last-fed-input"><button class="today-btn" onclick="setToday('last-fed-input')">✓ Today</button></div>
-            </div>
-            <button onclick="saveScan()" style="background:#28a745; margin-top:20px;">Save Record</button>
-            <button class="secondary" onclick="resetScanner()">Cancel</button>
-        </div>
-    </div>
-
-    <div id="tab-data" class="tab-content hidden">
-        <div class="card">
-            <input type="text" id="search-bar" placeholder="🔍 Search Species or Tank..." onkeyup="filterData()">
-            <button class="secondary" onclick="exportFullBackup()">📤 Backup JSON</button>
-            <div style="overflow-x:auto;"><table id="data-table"><thead><tr><th>Tank</th><th>Species</th><th>Age</th><th>Del</th></tr></thead><tbody id="data-body"></tbody></table></div>
-        </div>
-    </div>
-
-    <div id="tab-breeds" class="tab-content hidden">
-        <div class="card"><h3>Manage Species</h3><input type="text" id="new-breed-name" placeholder="Species Name"><button onclick="addBreed()">Add</button><div id="breed-list-container"></div></div>
-    </div>
-
-    <div id="tab-pdf" class="tab-content hidden">
-        <div class="card"><h3>Labels</h3><input type="number" id="pdf-start" value="1"> to <input type="number" id="pdf-end" value="20"><button onclick="generatePDF()">Print PDF</button></div>
-    </div>
-
-    <script>
-        const db = new Dexie("FishBreedingDB");
-        db.version(2).stores({ breeds: '++id, name', scans: 'barcodeId, breed, unit, bornDate, date, lastWC, lastFed' });
-
-        // --- 1. INITIALIZATION (The fix for auto-population) ---
-        async function init() {
-            await updateBreedDropdown(); // Load species into dropdown first
-            await updateStats();         // Load tank counts
-            await loadData();            // Load inventory list
-            console.log("App Initialized & Species Loaded");
-        }
-        window.onload = init;
-
-        async function updateBreedDropdown() {
-            const all = await db.breeds.toArray();
-            const dropdown = document.getElementById('breed-dropdown');
-            dropdown.innerHTML = all.length > 0 
-                ? all.map(b => `<option value="${b.name}">${b.name}</option>`).join('')
-                : '<option value="">Add species first...</option>';
-        }
-
-        async function updateStats() {
-            document.getElementById('stat-total').innerText = await db.scans.count();
-            document.getElementById('stat-breeds').innerText = await db.breeds.count();
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active-tab'));
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
-            document.getElementById('btn-' + tabName).classList.add('active-tab');
-            if(tabName === 'breeds') loadBreeds();
-            if(tabName === 'data') loadData();
-        }
-
-        // --- 2. SCANNER LOGIC (Auto-populates if found) ---
+// --- SCANNER LOGIC ---
         const html5QrCode = new Html5Qrcode("reader");
+        
         html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+            // 1. Show the form and set the Tank ID
             document.getElementById('display-barcode').innerText = text;
             document.getElementById('capture-form').classList.remove('hidden');
             
+            // 2. ALWAYS Clear the form first (Reset to blank for manual entry)
+            clearCaptureForm();
+
+            // 3. Try to pull existing data
             db.scans.get(text).then(existing => {
                 if(existing) {
-                    // It finds the existing record and sets the dropdown to the saved species
+                    // If found, populate the fields
                     document.getElementById('breed-dropdown').value = existing.breed;
                     document.getElementById('unit-input').value = existing.unit || "";
                     document.getElementById('born-date-input').value = existing.bornDate || "";
                     document.getElementById('last-wc-input').value = existing.lastWC || "";
                     document.getElementById('last-fed-input').value = existing.lastFed || "";
+                    console.log("Existing record loaded for #" + text);
+                } else {
+                    // No record found - User enters values manually
+                    console.log("New barcode detected. Manual entry enabled.");
                 }
             });
         });
 
-        // Other functions remain same for brevity but included in full code
-        function setToday(id) { document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
-        function resetScanner() { document.getElementById('capture-form').classList.add('hidden'); }
-        
-        async function saveScan() {
-            const id = document.getElementById('display-barcode').innerText;
-            const breed = document.getElementById('breed-dropdown').value;
-            if(!breed) return alert("Please add species in SPECIES tab first!");
-            await db.scans.put({
-                barcodeId: id, breed, unit: document.getElementById('unit-input').value,
-                bornDate: document.getElementById('born-date-input').value,
-                lastWC: document.getElementById('last-wc-input').value,
-                lastFed: document.getElementById('last-fed-input').value,
-                date: new Date().toLocaleDateString()
-            });
-            resetScanner(); updateStats(); loadData(); alert("Saved!");
+        // Helper function to wipe the form clean
+        function clearCaptureForm() {
+            // Reset dropdown to first option (usually your first species)
+            const dropdown = document.getElementById('breed-dropdown');
+            if (dropdown.options.length > 0) dropdown.selectedIndex = 0;
+            
+            document.getElementById('unit-input').value = "";
+            document.getElementById('born-date-input').value = "";
+            document.getElementById('last-wc-input').value = "";
+            document.getElementById('last-fed-input').value = "";
         }
-
-        async function addBreed() {
-            const name = document.getElementById('new-breed-name').value.trim();
-            if(name) { await db.breeds.add({ name }); document.getElementById('new-breed-name').value = ''; updateBreedDropdown(); loadBreeds(); }
-        }
-
-        async function loadBreeds() {
-            const all = await db.breeds.toArray();
-            document.getElementById('breed-list-container').innerHTML = all.map(b => `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;"><span>${b.name}</span><button class="danger" onclick="deleteBreed(${b.id})">Del</button></div>`).join('');
-        }
-        async function deleteBreed(id) { await db.breeds.delete(id); updateBreedDropdown(); loadBreeds(); }
-        
-        async function loadData() { allScans = await db.scans.toArray(); renderTable(allScans); }
-        function renderTable(data) {
-            document.getElementById('data-body').innerHTML = data.map(s => `<tr><td>#${s.barcodeId}</td><td>${s.breed}</td><td>${s.bornDate || 'N/A'}</td><td><button class="danger" onclick="deleteScan('${s.barcodeId}')">🗑️</button></td></tr>`).join('');
-        }
-        async function deleteScan(id) { if(confirm("Delete?")) { await db.scans.delete(id); loadData(); updateStats(); } }
-        async function exportFullBackup() {
-            const breeds = await db.breeds.toArray(); const scans = await db.scans.toArray();
-            const blob = new Blob([JSON.stringify({ breeds, scans })], { type: 'application/json' });
-            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `Aquarium_Backup.json`; link.click();
-        }
-        async function generatePDF() {
-            const doc = new jspdf.jsPDF(); const start = parseInt(document.getElementById('pdf-start').value); const end = parseInt(document.getElementById('pdf-end').value);
-            let x = 15, y = 20;
-            for (let i = start; i <= end; i++) {
-                const canvas = document.createElement('canvas'); bwipjs.toCanvas(canvas, { bcid: 'code128', text: i.toString(), scale: 3, height: 10, includetext: true });
-                doc.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, 45, 25);
-                x += 60; if (x > 150) { x = 15; y += 40; } if (y > 250) { doc.addPage(); x = 15; y = 20; }
-            }
-            doc.save(`Labels.pdf`);
-        }
-    </script>
-</body>
-</html>
