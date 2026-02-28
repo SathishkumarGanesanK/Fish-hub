@@ -36,7 +36,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         th, td { border-bottom: 1px solid #f1f3f5; padding: 10px 5px; text-align: left; }
         .maint-tag { font-size: 10px; color: #7f8c8d; display: block; margin-top: 2px; }
-        .age-badge { padding: 3px 8px; border-radius: 20px; font-weight: 700; font-size: 10px; }
+        .age-badge { padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 11px; white-space: nowrap; }
         .fry { background: #e3f2fd; color: #0d47a1; }
         .growout { background: #e8f5e9; color: #1b5e20; }
         .adult { background: #fff3e0; color: #e65100; }
@@ -98,7 +98,7 @@
                 <button class="sync" onclick="document.getElementById('importFile').click()">📥 Import</button>
                 <input type="file" id="importFile" class="hidden" accept=".json" onchange="importFullBackup(event)">
             </div>
-            <div style="overflow-x:auto;"><table id="data-table"><thead><tr><th>Tank</th><th>Species/Age</th><th>Status</th><th>Del</th></tr></thead><tbody id="data-body"></tbody></table></div>
+            <div style="overflow-x:auto;"><table id="data-table"><thead><tr><th>Tank</th><th>Species & Age</th><th>Maint.</th><th>Del</th></tr></thead><tbody id="data-body"></tbody></table></div>
         </div>
     </div>
 
@@ -134,10 +134,29 @@
 
         function setToday(id) { document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
         
-        function getAgeInMonths(birthDateStr) {
-            if (!birthDateStr) return -1;
-            const birth = new Date(birthDateStr); const now = new Date();
-            return (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+        // --- NEW AGE LOGIC ---
+        function getDetailedAge(birthDateStr) {
+            if (!birthDateStr) return { stage: 'N/A', days: '', class: '' };
+            const birth = new Date(birthDateStr);
+            const now = new Date();
+            const diffTime = now - birth;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            let stage = 'FRY';
+            let cssClass = 'fry';
+            
+            if (diffDays >= 30 && diffDays < 90) {
+                stage = 'GROW';
+                cssClass = 'growout';
+            } else if (diffDays >= 90) {
+                stage = 'ADULT';
+                cssClass = 'adult';
+            }
+            
+            // Format days to 2 digits (e.g., 02, 15, 100)
+            const dayString = diffDays < 10 ? `0${diffDays}` : diffDays;
+            
+            return { stage, days: dayString, class: cssClass };
         }
 
         function getDaysSince(dateStr) {
@@ -174,10 +193,7 @@
         html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
             document.getElementById('display-barcode').innerText = text;
             document.getElementById('capture-form').classList.remove('hidden');
-            
-            // Wipe form clean including dropdown reset
             clearCaptureForm();
-
             db.scans.get(text).then(existing => {
                 if(existing) {
                     document.getElementById('breed-dropdown').value = existing.breed || "";
@@ -190,7 +206,7 @@
         });
 
         function clearCaptureForm() {
-            document.getElementById('breed-dropdown').value = ""; // Resets to blank placeholder
+            document.getElementById('breed-dropdown').value = "";
             document.getElementById('unit-input').value = "";
             document.getElementById('born-date-input').value = "";
             document.getElementById('last-wc-input').value = "";
@@ -203,7 +219,6 @@
             const id = document.getElementById('display-barcode').innerText;
             const breed = document.getElementById('breed-dropdown').value;
             if(!breed) return alert("Please select a species!");
-            
             await db.scans.put({
                 barcodeId: id, breed, unit: document.getElementById('unit-input').value,
                 bornDate: document.getElementById('born-date-input').value,
@@ -211,7 +226,7 @@
                 lastFed: document.getElementById('last-fed-input').value,
                 date: new Date().toLocaleDateString()
             });
-            resetScanner(); updateStats(); loadData(); alert("Tank Saved!");
+            resetScanner(); updateStats(); loadData(); alert("Saved!");
         }
 
         async function addBreed() {
@@ -234,13 +249,11 @@
 
         function renderTable(data) {
             document.getElementById('data-body').innerHTML = data.map(s => {
-                const age = getAgeInMonths(s.bornDate);
-                const stage = age < 1 ? 'fry' : (age < 3 ? 'growout' : 'adult');
-                const label = age < 1 ? 'FRY' : age + ' Mo';
+                const age = getDetailedAge(s.bornDate);
                 return `<tr>
-                    <td>#${s.barcodeId}</td>
-                    <td>${s.breed}<br><span class="age-badge ${stage}">${label}</span></td>
-                    <td><span class="maint-tag">WC: ${getDaysSince(s.lastWC)}</span><span class="maint-tag">Fed: ${getDaysSince(s.lastFed)}</span></td>
+                    <td><strong>#${s.barcodeId}</strong></td>
+                    <td>${s.breed}<br><span class="age-badge ${age.class}">${age.stage}-${age.days}</span></td>
+                    <td><span class="maint-tag">WC: ${getDaysSince(s.lastWC)}</span><span class="maint-tag">F: ${getDaysSince(s.lastFed)}</span></td>
                     <td><button class="danger" onclick="deleteScan('${s.barcodeId}')">🗑️</button></td>
                 </tr>`;
             }).join('');
@@ -260,7 +273,7 @@
                 if(confirm("Overwrite all data?")) {
                     await db.breeds.clear(); await db.scans.clear();
                     await db.breeds.bulkAdd(data.breeds); await db.scans.bulkAdd(data.scans);
-                    await updateBreedDropdown(); loadData(); updateStats(); alert("Backup Restored!");
+                    await updateBreedDropdown(); loadData(); updateStats(); alert("Restored!");
                 }
             };
             reader.readAsText(file);
