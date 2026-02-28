@@ -62,7 +62,9 @@
             <h3 style="margin:0 0 10px 0; color:#00a8cc">Tank ID: #<span id="display-barcode"></span></h3>
             
             <label>Species</label>
-            <select id="breed-dropdown"></select>
+            <select id="breed-dropdown">
+                <option value="">-- Select Species --</option>
+            </select>
 
             <label>Hatch / Born Date</label>
             <input type="date" id="born-date-input">
@@ -123,7 +125,6 @@
 
         let allScans = [];
 
-        // App Init
         async function init() {
             await updateBreedDropdown();
             await updateStats();
@@ -131,7 +132,6 @@
         }
         window.onload = init;
 
-        // UI Helpers
         function setToday(id) { document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
         
         function getAgeInMonths(birthDateStr) {
@@ -154,9 +154,11 @@
         async function updateBreedDropdown() {
             const all = await db.breeds.toArray();
             const dropdown = document.getElementById('breed-dropdown');
-            dropdown.innerHTML = all.length > 0 
-                ? all.map(b => `<option value="${b.name}">${b.name}</option>`).join('')
-                : '<option value="">Add species first...</option>';
+            let options = '<option value="">-- Select Species --</option>';
+            if (all.length > 0) {
+                options += all.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+            }
+            dropdown.innerHTML = options;
         }
 
         function showTab(tabName) {
@@ -168,16 +170,14 @@
             if(tabName === 'data') loadData();
         }
 
-        // Scanner Logic
         const html5QrCode = new Html5Qrcode("reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
             document.getElementById('display-barcode').innerText = text;
             document.getElementById('capture-form').classList.remove('hidden');
             
-            // Wipe form clean for new entries
+            // Wipe form clean including dropdown reset
             clearCaptureForm();
 
-            // Auto-populate if exists
             db.scans.get(text).then(existing => {
                 if(existing) {
                     document.getElementById('breed-dropdown').value = existing.breed || "";
@@ -190,8 +190,7 @@
         });
 
         function clearCaptureForm() {
-            const dropdown = document.getElementById('breed-dropdown');
-            if (dropdown.options.length > 0) dropdown.selectedIndex = 0;
+            document.getElementById('breed-dropdown').value = ""; // Resets to blank placeholder
             document.getElementById('unit-input').value = "";
             document.getElementById('born-date-input').value = "";
             document.getElementById('last-wc-input').value = "";
@@ -203,7 +202,7 @@
         async function saveScan() {
             const id = document.getElementById('display-barcode').innerText;
             const breed = document.getElementById('breed-dropdown').value;
-            if(!breed) return alert("Please add species first!");
+            if(!breed) return alert("Please select a species!");
             
             await db.scans.put({
                 barcodeId: id, breed, unit: document.getElementById('unit-input').value,
@@ -215,17 +214,16 @@
             resetScanner(); updateStats(); loadData(); alert("Tank Saved!");
         }
 
-        // Data Management
         async function addBreed() {
             const name = document.getElementById('new-breed-name').value.trim();
-            if(name) { await db.breeds.add({ name }); document.getElementById('new-breed-name').value = ''; updateBreedDropdown(); loadBreeds(); }
+            if(name) { await db.breeds.add({ name }); document.getElementById('new-breed-name').value = ''; await updateBreedDropdown(); loadBreeds(); }
         }
 
         async function loadBreeds() {
             const all = await db.breeds.toArray();
             document.getElementById('breed-list-container').innerHTML = all.map(b => `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;"><span>${b.name}</span><button class="danger" onclick="deleteBreed(${b.id})">Del</button></div>`).join('');
         }
-        async function deleteBreed(id) { if(confirm("Delete species?")) { await db.breeds.delete(id); updateBreedDropdown(); loadBreeds(); } }
+        async function deleteBreed(id) { if(confirm("Delete species?")) { await db.breeds.delete(id); await updateBreedDropdown(); loadBreeds(); } }
 
         async function loadData() { allScans = await db.scans.toArray(); filterData(); }
         function filterData() {
@@ -249,7 +247,6 @@
         }
         async function deleteScan(id) { if(confirm("Delete record?")) { await db.scans.delete(id); loadData(); updateStats(); } }
 
-        // Backup
         async function exportFullBackup() {
             const breeds = await db.breeds.toArray(); const scans = await db.scans.toArray();
             const blob = new Blob([JSON.stringify({ breeds, scans })], { type: 'application/json' });
@@ -263,7 +260,7 @@
                 if(confirm("Overwrite all data?")) {
                     await db.breeds.clear(); await db.scans.clear();
                     await db.breeds.bulkAdd(data.breeds); await db.scans.bulkAdd(data.scans);
-                    updateBreedDropdown(); loadData(); updateStats(); alert("Backup Restored!");
+                    await updateBreedDropdown(); loadData(); updateStats(); alert("Backup Restored!");
                 }
             };
             reader.readAsText(file);
