@@ -1,267 +1,36 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aquarium Breeding Hub - Pro</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js.min.js"></script>
-
-    <style>
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 15px; background: #eef2f3; color: #333; padding-bottom: 60px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; border-top: 4px solid #00a8cc; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: #00a8cc; color: white; padding: 15px; border-radius: 12px; text-align: center; }
-        .stat-card h4 { margin: 0; font-size: 11px; text-transform: uppercase; opacity: 0.9; }
-        .stat-card p { margin: 5px 0 0; font-size: 20px; font-weight: bold; }
-        
-        button { padding: 14px; border: none; border-radius: 10px; background: #00a8cc; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
-        button.secondary { background: #adb5bd; }
-        button.danger { background: #ff4d4d; width: auto; padding: 6px 12px; font-size: 12px; margin-top: 0; }
-        button.today-btn { background: #20c997; font-size: 11px; padding: 6px; margin-top: 5px; width: 100%; }
-        button.sync { background: #6f42c1; }
-        
-        input, select { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 10px; font-size: 16px; background-color: #f8f9fa; }
-        label { font-size: 11px; font-weight: 700; color: #495057; text-transform: uppercase; display: block; margin-top: 10px; }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; border: 2px solid #00a8cc; }
-        .hidden { display: none; }
-        
-        .nav { display: flex; gap: 5px; position: sticky; top: 0; background: #eef2f3; z-index: 100; padding: 5px 0; }
-        .nav button { flex: 1; font-size: 10px; padding: 12px 2px; margin-top: 0; background: #fff; color: #495057; border: 1px solid #dee2e6; border-radius: 8px; }
-        .nav button.active-tab { background: #00a8cc; color: #fff; border-color: #00a8cc; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th, td { border-bottom: 1px solid #f1f3f5; padding: 10px 5px; text-align: left; }
-        .maint-tag { font-size: 10px; color: #7f8c8d; display: block; margin-top: 2px; }
-        .age-badge { padding: 3px 8px; border-radius: 20px; font-weight: 700; font-size: 10px; }
-        .fry { background: #e3f2fd; color: #0d47a1; }
-        .growout { background: #e8f5e9; color: #1b5e20; }
-        .adult { background: #fff3e0; color: #e65100; }
-    </style>
-</head>
-<body>
-
-    <div class="nav">
-        <button id="btn-scan" class="active-tab" onclick="showTab('scan')">TANK SCAN</button>
-        <button id="btn-data" onclick="showTab('data')">INVENTORY</button>
-        <button id="btn-breeds" onclick="showTab('breeds')">SPECIES</button>
-        <button id="btn-pdf" onclick="showTab('pdf')">LABELS</button>
-    </div>
-
-    <div id="tab-scan" class="tab-content">
-        <div class="stats-grid">
-            <div class="stat-card"><h4>Active Tanks</h4><p id="stat-total">0</p></div>
-            <div class="stat-card" style="background: #20c997;"><h4>Species</h4><p id="stat-breeds">0</p></div>
-        </div>
-        <div class="card"><div id="reader"></div></div>
-        
-        <div id="capture-form" class="card hidden">
-            <h3 style="margin:0 0 10px 0; color:#00a8cc">Tank: #<span id="display-barcode"></span></h3>
-            
-            <label>Species</label>
-            <select id="breed-dropdown"></select>
-
-            <label>Hatch/Born Date</label>
-            <input type="date" id="born-date-input">
-
-            <label>Quantity/Note</label>
-            <input type="text" id="unit-input" placeholder="e.g. 50 Fry">
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div>
-                    <label>Water Change</label>
-                    <input type="date" id="last-wc-input">
-                    <button class="today-btn" onclick="setToday('last-wc-input')">✓ Done Today</button>
-                </div>
-                <div>
-                    <label>Last Fed</label>
-                    <input type="date" id="last-fed-input">
-                    <button class="today-btn" onclick="setToday('last-fed-input')">✓ Fed Today</button>
-                </div>
-            </div>
-
-            <button onclick="saveScan()" style="background:#28a745; margin-top:20px;">Save All Changes</button>
-            <button class="secondary" onclick="resetScanner()">Cancel</button>
-        </div>
-    </div>
-
-    <div id="tab-data" class="tab-content hidden">
-        <div class="card">
-            <input type="text" id="search-bar" placeholder="🔍 Search Species or Tank..." onkeyup="filterData()">
-            <label>Growth Filter</label>
-            <select id="maturity-filter" onchange="filterData()">
-                <option value="all">All Stages</option><option value="fry">Fry</option><option value="growout">Juvenile</option><option value="adult">Adult</option>
-            </select>
-            <div style="display:flex; gap:5px; margin-top:10px;">
-                <button class="sync" onclick="exportFullBackup()">📤 Export Backup</button>
-                <button class="sync" onclick="document.getElementById('importFile').click()">📥 Import</button>
-                <input type="file" id="importFile" class="hidden" accept=".json" onchange="importFullBackup(event)">
-            </div>
-            <div style="overflow-x:auto;"><table id="data-table"><thead><tr><th>Tank</th><th>Species</th><th>Maint.</th><th>Del</th></tr></thead><tbody id="data-body"></tbody></table></div>
-        </div>
-    </div>
-
-    <div id="tab-breeds" class="tab-content hidden">
-        <div class="card"><h3>Species Management</h3><input type="text" id="new-breed-name" placeholder="Species Name"><button onclick="addBreed()">Add Species</button><div id="breed-list-container"></div></div>
-    </div>
-    <div id="tab-pdf" class="tab-content hidden">
-        <div class="card"><h3>Labels</h3><input type="number" id="pdf-start" value="1"> to <input type="number" id="pdf-end" value="50"><button onclick="generatePDF()">Download PDF</button></div>
-    </div>
-
-    <script>
-        const db = new Dexie("FishBreedingDB");
-        db.version(2).stores({ breeds: '++id, name', scans: 'barcodeId, breed, unit, bornDate, date, lastWC, lastFed' });
-        let allScans = [];
-
-        // UI Shortcuts
-        function setToday(id) {
-            document.getElementById(id).value = new Date().toISOString().split('T')[0];
-        }
-
-        function getAgeInMonths(birthDateStr) {
-            if (!birthDateStr) return -1;
-            const birth = new Date(birthDateStr); const now = new Date();
-            return (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
-        }
-
-        function getDaysSince(dateStr) {
-            if (!dateStr) return "Never";
-            const diffDays = Math.ceil(Math.abs(new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24));
-            return diffDays === 0 ? "Today" : diffDays + "d ago";
-        }
-
-        // Database Functions
-        async function updateStats() {
-            document.getElementById('stat-total').innerText = await db.scans.count();
-            document.getElementById('stat-breeds').innerText = await db.breeds.count();
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active-tab'));
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
-            document.getElementById('btn-' + tabName).classList.add('active-tab');
-            updateStats(); if(tabName === 'breeds') loadBreeds(); if(tabName === 'data') loadData(); if(tabName === 'scan') updateBreedDropdown();
-        }
-
-        async function addBreed() {
-            const name = document.getElementById('new-breed-name').value.trim();
-            if(name) { await db.breeds.add({ name }); document.getElementById('new-breed-name').value = ''; loadBreeds(); }
-        }
-
-        async function loadBreeds() {
-            const all = await db.breeds.toArray();
-            document.getElementById('breed-list-container').innerHTML = all.map(b => `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;"><span>${b.name}</span><button class="danger" onclick="deleteBreed(${b.id})">Del</button></div>`).join('');
-        }
-
-        async function deleteBreed(id) { if(confirm("Remove species?")) { await db.breeds.delete(id); loadBreeds(); } }
-        async function updateBreedDropdown() {
-            const all = await db.breeds.toArray();
-            document.getElementById('breed-dropdown').innerHTML = all.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
-        }
-
-        async function loadData() { allScans = await db.scans.toArray(); filterData(); }
-        function filterData() {
-            const term = document.getElementById('search-bar').value.toLowerCase();
-            const ageFilter = document.getElementById('maturity-filter').value;
-            const filtered = allScans.filter(s => {
-                const age = getAgeInMonths(s.bornDate);
-                const matchesSearch = s.barcodeId.toLowerCase().includes(term) || s.breed.toLowerCase().includes(term);
-                let matchesAge = (ageFilter === "all") || (ageFilter === "fry" && age < 1) || (ageFilter === "growout" && age >= 1 && age < 3) || (ageFilter === "adult" && age >= 3);
-                return matchesSearch && matchesAge;
-            });
-            renderTable(filtered);
-        }
-
-        function renderTable(data) {
-            const body = document.getElementById('data-body');
-            body.innerHTML = data.map(s => {
-                const age = getAgeInMonths(s.bornDate);
-                const stage = age < 1 ? 'fry' : (age < 3 ? 'growout' : 'adult');
-                return `<tr><td><strong>#${s.barcodeId}</strong></td><td>${s.breed}<br><span class="age-badge ${stage}">${age < 1 ? 'FRY' : age + ' Mo'}</span></td><td><span class="maint-tag">WC: ${getDaysSince(s.lastWC)}</span><span class="maint-tag">Fed: ${getDaysSince(s.lastFed)}</span></td><td><button class="danger" onclick="deleteScan('${s.barcodeId}')">🗑️</button></td></tr>`;
-            }).join('');
-        }
-
-        async function deleteScan(id) { if(confirm("Delete record?")) { await db.scans.delete(id); loadData(); updateStats(); } }
-
-        // Scanner Logic
+// Scanner Logic - UPDATED for better auto-population
         const html5QrCode = new Html5Qrcode("reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+            // 1. Set the Tank ID display
             document.getElementById('display-barcode').innerText = text;
+            
+            // 2. Open the form
             document.getElementById('capture-form').classList.remove('hidden');
+            
+            // 3. Look up this Tank ID in our database
             db.scans.get(text).then(existing => {
                 if(existing) {
-                    document.getElementById('breed-dropdown').value = existing.breed || "";
+                    // AUTO-POPULATE: Match species name to the dropdown
+                    const breedDropdown = document.getElementById('breed-dropdown');
+                    
+                    // We set the value and also trigger a change event to be safe
+                    breedDropdown.value = existing.breed || ""; 
+                    
                     document.getElementById('unit-input').value = existing.unit || "";
                     document.getElementById('born-date-input').value = existing.bornDate || "";
                     document.getElementById('last-wc-input').value = existing.lastWC || "";
                     document.getElementById('last-fed-input').value = existing.lastFed || "";
+                    
+                    console.log("Found existing tank #" + text + ". Populated Species: " + existing.breed);
                 } else {
-                    document.getElementById('born-date-input').value = "";
+                    // Reset fields for a brand new tank scan
                     document.getElementById('unit-input').value = "";
+                    document.getElementById('born-date-input').value = "";
                     document.getElementById('last-wc-input').value = "";
                     document.getElementById('last-fed-input').value = "";
+                    console.log("New Tank ID detected: " + text);
                 }
+            }).catch(err => {
+                console.error("Database lookup error:", err);
             });
         });
-
-        function resetScanner() { document.getElementById('capture-form').classList.add('hidden'); }
-        async function saveScan() {
-            const barcodeId = document.getElementById('display-barcode').innerText;
-            await db.scans.put({
-                barcodeId, breed: document.getElementById('breed-dropdown').value,
-                bornDate: document.getElementById('born-date-input').value,
-                unit: document.getElementById('unit-input').value,
-                lastWC: document.getElementById('last-wc-input').value,
-                lastFed: document.getElementById('last-fed-input').value,
-                date: new Date().toLocaleDateString()
-            });
-            resetScanner(); updateStats(); alert("Tank Saved!");
-        }
-
-        // Backup Management
-        async function exportFullBackup() {
-            const breeds = await db.breeds.toArray();
-            const scans = await db.scans.toArray();
-            const blob = new Blob([JSON.stringify({ breeds, scans })], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Aquarium_Backup_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-        }
-
-        async function importFullBackup(event) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const data = JSON.parse(e.target.result);
-                if(confirm("Overwrite device data?")) {
-                    await db.breeds.clear(); await db.scans.clear();
-                    await db.breeds.bulkAdd(data.breeds); await db.scans.bulkAdd(data.scans);
-                    alert("Import Complete!"); loadData(); updateStats();
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        async function generatePDF() {
-            const doc = new jspdf.jsPDF();
-            const start = parseInt(document.getElementById('pdf-start').value);
-            const end = parseInt(document.getElementById('pdf-end').value);
-            let x = 15, y = 20;
-            for (let i = start; i <= end; i++) {
-                const canvas = document.createElement('canvas');
-                bwipjs.toCanvas(canvas, { bcid: 'code128', text: i.toString(), scale: 3, height: 10, includetext: true });
-                doc.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, 45, 25);
-                x += 60; if (x > 150) { x = 15; y += 40; }
-                if (y > 250) { doc.addPage(); x = 15; y = 20; }
-            }
-            doc.save(`Tank_Labels.pdf`);
-        }
-        updateStats();
-    </script>
-</body>
-</html>
