@@ -7,27 +7,26 @@
     
     <script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js.min.js"></script>
 
     <style>
         body { font-family: -apple-system, system-ui, sans-serif; margin: 15px; background: #eef2f3; color: #333; padding-bottom: 60px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; border-top: 4px solid #00a8cc; }
         
-        /* Navigation Bug Fix: Dark text for inactive tabs */
+        /* Navigation */
         .nav { display: flex; gap: 5px; position: sticky; top: 0; background: #eef2f3; z-index: 100; padding: 5px 0; }
         .nav button { flex: 1; font-size: 10px; padding: 12px 2px; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; cursor: pointer; color: #444; font-weight: bold; }
         .nav button.active-tab { background: #00a8cc; color: #fff; border-color: #00a8cc; }
         
         .summary-banner { background: #00a8cc; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center; }
         .summary-banner h2 { margin: 0; font-size: 24px; }
-        .summary-banner p { margin: 5px 0 0; font-size: 12px; opacity: 0.9; text-transform: uppercase; }
 
         input, select { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 10px; font-size: 15px; background: #f8f9fa; }
         button { padding: 12px; border: none; border-radius: 10px; background: #00a8cc; color: white; font-weight: 600; cursor: pointer; width: 100%; }
-        button.secondary { background: #6c757d; margin-top: 5px; }
+        button.secondary { background: #6c757d; }
         button.danger { background: #ff4d4d; width: auto; padding: 6px 10px; font-size: 12px; }
         button.edit-btn { background: #ffc107; color: #212529; width: auto; padding: 6px 10px; font-size: 12px; }
-        
+        button.save-btn { background: #28a745; color: white; width: auto; padding: 6px 10px; font-size: 12px; }
+
         .breed-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .age-badge { padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; color: white; display: inline-block; }
         .bg-fry { background: #3498db; }
@@ -45,13 +44,14 @@
         <button id="btn-scan" class="active-tab" onclick="showTab('scan')">TANK ACCESS</button>
         <button id="btn-data" onclick="showTab('data')">INVENTORY</button>
         <button id="btn-breeds" onclick="showTab('breeds')">SPECIES</button>
-        <button id="btn-pdf" onclick="showTab('pdf')">LABELS</button>
+        <button id="btn-pdf" onclick="showTab('pdf')">PRINT LABELS</button>
     </div>
 
     <div id="tab-scan" class="tab-content">
         <div class="card">
-            <input type="number" id="manual-tank-id" placeholder="Enter Tank #">
-            <button onclick="handleManualEntry()">Open Tank Record</button>
+            <h3>Open Tank</h3>
+            <input type="number" id="manual-tank-id" placeholder="Tank Number">
+            <button onclick="handleManualEntry()">Load Record</button>
         </div>
         <div id="capture-form" class="card hidden">
             <h3 id="form-title">Tank: #</h3>
@@ -59,35 +59,34 @@
             <select id="breed-dropdown"></select>
             <label>Hatch Date</label>
             <input type="date" id="born-date-input">
-            <label>Number of Fish</label>
+            <label>Fish Count</label>
             <input type="number" id="unit-input">
             <button onclick="saveScan()" style="background:#28a745;">Save Changes</button>
+            <button class="secondary" onclick="resetUI()" style="margin-top:10px;">Cancel</button>
         </div>
     </div>
 
     <div id="tab-data" class="tab-content hidden">
         <div class="summary-banner">
-            <p id="category-label">Total Fish (All)</p>
+            <p id="category-label">Total Fish</p>
             <h2 id="total-fish-count">0</h2>
         </div>
         <div class="card">
-            <label>Filter by Life Stage</label>
             <select id="age-filter" onchange="loadData()">
-                <option value="all">Show All</option>
-                <option value="fry">Fry (0-30 Days)</option>
-                <option value="juv">Juvenile (30-60 Days)</option>
-                <option value="adult">Adult (60-90 Days)</option>
+                <option value="all">All Stages</option>
+                <option value="fry">Fry (0-30d)</option>
+                <option value="juv">Juvenile (30-60d)</option>
+                <option value="adult">Adult (60-90d)</option>
             </select>
             <div style="overflow-x:auto;">
-                <table>
-                    <thead><tr><th>Tank</th><th>Species/Count</th><th>Age (Days)</th><th>Action</th></tr></thead>
+                <table id="inventory-table">
+                    <thead><tr><th>Tank</th><th>Species/Count</th><th>Age</th><th>Action</th></tr></thead>
                     <tbody id="data-body"></tbody>
                 </table>
             </div>
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <button onclick="exportData()" style="background: #6f42c1;">📤 Export JSON</button>
-                <button onclick="document.getElementById('importInput').click()" style="background: #e67e22;">📥 Import JSON</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px;">
+                <button onclick="exportData()" style="background: #6f42c1;">📤 Export</button>
+                <button onclick="document.getElementById('importInput').click()" style="background: #e67e22;">📥 Import</button>
                 <input type="file" id="importInput" class="hidden" accept=".json" onchange="importData(event)">
             </div>
         </div>
@@ -95,26 +94,26 @@
 
     <div id="tab-breeds" class="tab-content hidden">
         <div class="card">
-            <h3>Add New Species</h3>
-            <input type="text" id="new-breed-name" placeholder="Name">
+            <h3>Add/Edit Species</h3>
+            <input type="text" id="new-breed-name" placeholder="Species Name">
             <input type="number" id="new-breed-price" placeholder="Price ($)">
-            <button onclick="addBreed()">Add to List</button>
+            <button id="add-breed-btn" onclick="addBreed()">Add Species</button>
         </div>
         <div class="card">
-            <input type="text" id="breed-search" placeholder="Search species..." onkeyup="renderSpeciesList()">
+            <input type="text" id="breed-search" placeholder="Search..." onkeyup="renderSpeciesList()">
             <div id="breed-list-container"></div>
         </div>
     </div>
 
     <div id="tab-pdf" class="tab-content hidden">
         <div class="card">
-            <h3>Generate Tank Labels</h3>
-            <p style="font-size: 12px; color: #666;">Enter the range of tank numbers to generate barcodes.</p>
+            <h3>Print Number Labels</h3>
+            <p style="font-size: 12px; color: #666;">Export a PDF with tank numbers (3x7 grid per page).</p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <input type="number" id="pdf-start" value="1" placeholder="Start #">
-                <input type="number" id="pdf-end" value="20" placeholder="End #">
+                <input type="number" id="pdf-end" value="21" placeholder="End #">
             </div>
-            <button onclick="generatePDF()" style="background: #34495e;">Download PDF Labels</button>
+            <button onclick="generatePDFLabels()" style="background: #34495e;">Download PDF Labels</button>
         </div>
     </div>
 
@@ -141,9 +140,42 @@
             if(tabName === 'data') loadData();
         }
 
+        // --- TANK ACCESS ---
+        function handleManualEntry() {
+            const id = document.getElementById('manual-tank-id').value;
+            if(id) openEdit(id);
+        }
+
+        async function openEdit(id) {
+            showTab('scan');
+            document.getElementById('form-title').innerText = "Tank: #" + id;
+            document.getElementById('capture-form').classList.remove('hidden');
+            const data = await db.scans.get(id);
+            
+            // Default to blank if no record exists
+            document.getElementById('breed-dropdown').value = data ? data.breed : "";
+            document.getElementById('born-date-input').value = data ? data.bornDate : "";
+            document.getElementById('unit-input').value = data ? data.unit : "";
+            window.currentTankId = id;
+        }
+
+        async function saveScan() {
+            if(!document.getElementById('breed-dropdown').value) return alert("Please select a species.");
+            await db.scans.put({
+                barcodeId: window.currentTankId,
+                breed: document.getElementById('breed-dropdown').value,
+                bornDate: document.getElementById('born-date-input').value,
+                unit: document.getElementById('unit-input').value
+            });
+            alert("Record Saved");
+            resetUI();
+            loadData();
+        }
+        function resetUI() { document.getElementById('capture-form').classList.add('hidden'); }
+
         // --- SPECIES LOGIC ---
         async function addBreed() {
-            const name = document.getElementById('new-breed-name').value;
+            const name = document.getElementById('new-breed-name').value.trim();
             const price = parseFloat(document.getElementById('new-breed-price').value) || 0;
             if(!name) return;
             await db.breeds.add({ name, price });
@@ -158,26 +190,43 @@
             const list = await db.breeds.toArray();
             const container = document.getElementById('breed-list-container');
             container.innerHTML = list.filter(b => b.name.toLowerCase().includes(term)).map(b => `
-                <div class="breed-item">
+                <div class="breed-item" id="row-${b.id}">
                     <div><strong>${b.name}</strong> - $${b.price}</div>
-                    <button class="danger" onclick="deleteBreed(${b.id})">Del</button>
+                    <div>
+                        <button class="edit-btn" onclick="editBreedInline(${b.id}, '${b.name}', ${b.price})">✏️</button>
+                        <button class="danger" onclick="deleteBreed(${b.id})">Del</button>
+                    </div>
                 </div>
             `).join('');
         }
 
-        async function deleteBreed(id) {
-            if(confirm("Delete this species?")) {
-                await db.breeds.delete(id);
-                renderSpeciesList();
-                updateBreedDropdown();
-            }
+        function editBreedInline(id, name, price) {
+            const row = document.getElementById(`row-${id}`);
+            row.innerHTML = `
+                <div style="display:flex; gap:5px; width:100%;">
+                    <input type="text" id="edit-n-${id}" value="${name}" style="padding:5px;">
+                    <input type="number" id="edit-p-${id}" value="${price}" style="padding:5px; width:60px;">
+                    <button class="save-btn" onclick="saveBreedEdit(${id})">OK</button>
+                </div>
+            `;
+        }
+
+        async function saveBreedEdit(id) {
+            const n = document.getElementById(`edit-n-${id}`).value;
+            const p = parseFloat(document.getElementById(`edit-p-${id}`).value) || 0;
+            await db.breeds.update(id, { name: n, price: p });
+            await updateBreedDropdown();
+            renderSpeciesList();
         }
 
         async function updateBreedDropdown() {
             const list = await db.breeds.toArray();
-            document.getElementById('breed-dropdown').innerHTML = 
+            const dropdown = document.getElementById('breed-dropdown');
+            dropdown.innerHTML = '<option value="">-- Choose Species --</option>' + 
                 list.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
         }
+
+        async function deleteBreed(id) { if(confirm("Delete species?")) { await db.breeds.delete(id); renderSpeciesList(); updateBreedDropdown(); } }
 
         // --- INVENTORY LOGIC ---
         function calculateDays(dateStr) {
@@ -189,10 +238,8 @@
         async function loadData() {
             const filter = document.getElementById('age-filter').value;
             const scans = await db.scans.toArray();
-            const container = document.getElementById('data-body');
             let totalFish = 0;
-            
-            const filteredData = scans.filter(s => {
+            const filtered = scans.filter(s => {
                 const days = calculateDays(s.bornDate);
                 if(filter === 'fry') return days <= 30;
                 if(filter === 'juv') return days > 30 && days <= 60;
@@ -200,117 +247,78 @@
                 return true;
             });
 
-            container.innerHTML = filteredData.map(s => {
+            document.getElementById('data-body').innerHTML = filtered.map(s => {
                 const days = calculateDays(s.bornDate);
                 totalFish += parseInt(s.unit || 0);
-                let badgeClass = days <= 30 ? 'bg-fry' : (days <= 60 ? 'bg-juv' : 'bg-adult');
-                return `<tr>
-                    <td>#${s.barcodeId}</td>
-                    <td><strong>${s.unit || 0}</strong> ${s.breed}</td>
-                    <td><span class="age-badge ${badgeClass}">${days} Days</span></td>
-                    <td><button class="edit-btn" onclick="openEdit('${s.barcodeId}')">✏️</button></td>
-                </tr>`;
+                let badge = days <= 30 ? 'bg-fry' : (days <= 60 ? 'bg-juv' : 'bg-adult');
+                return `<tr><td>#${s.barcodeId}</td><td>${s.unit || 0} ${s.breed}</td>
+                    <td><span class="age-badge ${badge}">${days}d</span></td>
+                    <td><button class="edit-btn" onclick="openEdit('${s.barcodeId}')">✏️</button></td></tr>`;
             }).join('');
-
             document.getElementById('total-fish-count').innerText = totalFish;
-            document.getElementById('category-label').innerText = `Total Fish (${filter.toUpperCase()})`;
         }
 
-        // --- TANK ACCESS ---
-        function handleManualEntry() {
-            const id = document.getElementById('manual-tank-id').value;
-            if(id) openEdit(id);
-        }
-
-        async function openEdit(id) {
-            showTab('scan');
-            document.getElementById('form-title').innerText = "Tank: #" + id;
-            document.getElementById('capture-form').classList.remove('hidden');
-            const data = await db.scans.get(id);
-            if(data) {
-                document.getElementById('breed-dropdown').value = data.breed;
-                document.getElementById('born-date-input').value = data.bornDate;
-                document.getElementById('unit-input').value = data.unit;
-            } else {
-                document.getElementById('born-date-input').value = "";
-                document.getElementById('unit-input').value = "";
-            }
-            window.currentTankId = id;
-        }
-
-        async function saveScan() {
-            await db.scans.put({
-                barcodeId: window.currentTankId,
-                breed: document.getElementById('breed-dropdown').value,
-                bornDate: document.getElementById('born-date-input').value,
-                unit: document.getElementById('unit-input').value
-            });
-            alert("Tank Saved!");
-            loadData();
-        }
-
-        // --- DATA BACKUP ---
+        // --- EXPORT/IMPORT ---
         async function exportData() {
             const breeds = await db.breeds.toArray();
             const scans = await db.scans.toArray();
-            const data = JSON.stringify({ breeds, scans });
-            const blob = new Blob([data], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
+            const blob = new Blob([JSON.stringify({ breeds, scans })], { type: "application/json" });
             const a = document.createElement("a");
-            a.href = url;
-            a.download = `Aquarium_Backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.href = URL.createObjectURL(blob);
+            a.download = `Aquarium_Backup.json`;
             a.click();
         }
 
-        async function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        async function importData(e) {
             const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (confirm("Importing will overwrite your current database. Continue?")) {
-                        await db.breeds.clear();
-                        await db.scans.clear();
-                        if(data.breeds) await db.breeds.bulkAdd(data.breeds);
-                        if(data.scans) await db.scans.bulkAdd(data.scans);
-                        await init();
-                        alert("Import Successful!");
-                    }
-                } catch (err) {
-                    alert("Error parsing JSON file.");
+            reader.onload = async (event) => {
+                const data = JSON.parse(event.target.result);
+                if(confirm("Overwriting current data. Continue?")) {
+                    await db.breeds.clear(); await db.scans.clear();
+                    if(data.breeds) await db.breeds.bulkAdd(data.breeds);
+                    if(data.scans) await db.scans.bulkAdd(data.scans);
+                    init();
                 }
             };
-            reader.readAsText(file);
+            reader.readAsText(e.target.files[0]);
         }
 
-        // --- PDF GENERATOR ---
-        async function generatePDF() {
+        // --- PDF LABELS (3x7 Ratio) ---
+        function generatePDFLabels() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const start = parseInt(document.getElementById('pdf-start').value);
             const end = parseInt(document.getElementById('pdf-end').value);
-            
-            let x = 10, y = 10;
-            for (let i = start; i <= end; i++) {
-                const canvas = document.createElement('canvas');
-                bwipjs.toCanvas(canvas, {
-                    bcid: 'code128',
-                    text: i.toString(),
-                    scale: 3,
-                    height: 10,
-                    includetext: true,
-                    textxalign: 'center',
-                });
-                
-                const imgData = canvas.toDataURL('image/png');
-                doc.addImage(imgData, 'PNG', x, y, 40, 20);
-                
-                x += 50;
-                if (x > 160) { x = 10; y += 30; }
-                if (y > 260) { doc.addPage(); x = 10; y = 10; }
+
+            const cols = 3;
+            const rows = 7;
+            const cellWidth = 60;
+            const cellHeight = 35;
+            let currentNum = start;
+
+            while (currentNum <= end) {
+                for (let r = 0; r < rows && currentNum <= end; r++) {
+                    for (let c = 0; c < cols && currentNum <= end; c++) {
+                        const x = 10 + (c * cellWidth);
+                        const y = 20 + (r * cellHeight);
+                        
+                        // Draw box
+                        doc.setDrawColor(200);
+                        doc.rect(x, y, cellWidth - 5, cellHeight - 5);
+                        
+                        // Draw number
+                        doc.setTextColor(0);
+                        doc.setFontSize(24);
+                        doc.text(`TANK`, x + 12, y + 15);
+                        doc.setFontSize(36);
+                        doc.text(`#${currentNum}`, x + 12, y + 28);
+                        
+                        currentNum++;
+                    }
+                }
+                if (currentNum <= end) doc.addPage();
             }
-            doc.save("Tank_Barcodes.pdf");
+            doc.save("Tank_Labels_Print.pdf");
         }
     </script>
 </body>
