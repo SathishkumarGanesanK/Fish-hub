@@ -6,36 +6,35 @@
     <title>Aquarium Breeding Hub Pro</title>
     
     <script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js.min.js"></script>
 
     <style>
         body { font-family: -apple-system, system-ui, sans-serif; margin: 15px; background: #eef2f3; color: #333; padding-bottom: 60px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; border-top: 4px solid #00a8cc; }
         
-        /* Stats & Navigation */
+        /* Navigation Bug Fix: Dark text for inactive tabs */
         .nav { display: flex; gap: 5px; position: sticky; top: 0; background: #eef2f3; z-index: 100; padding: 5px 0; }
-        .nav button { flex: 1; font-size: 10px; padding: 12px 2px; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; cursor: pointer; }
+        .nav button { flex: 1; font-size: 10px; padding: 12px 2px; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; cursor: pointer; color: #444; font-weight: bold; }
         .nav button.active-tab { background: #00a8cc; color: #fff; border-color: #00a8cc; }
         
         .summary-banner { background: #00a8cc; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center; }
         .summary-banner h2 { margin: 0; font-size: 24px; }
         .summary-banner p { margin: 5px 0 0; font-size: 12px; opacity: 0.9; text-transform: uppercase; }
 
-        /* Forms & Inputs */
         input, select { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 10px; font-size: 15px; background: #f8f9fa; }
         button { padding: 12px; border: none; border-radius: 10px; background: #00a8cc; color: white; font-weight: 600; cursor: pointer; width: 100%; }
+        button.secondary { background: #6c757d; margin-top: 5px; }
         button.danger { background: #ff4d4d; width: auto; padding: 6px 10px; font-size: 12px; }
         button.edit-btn { background: #ffc107; color: #212529; width: auto; padding: 6px 10px; font-size: 12px; }
         
-        /* List Styles */
         .breed-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .age-badge { padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; color: white; display: inline-block; margin-top: 5px; }
+        .age-badge { padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; color: white; display: inline-block; }
         .bg-fry { background: #3498db; }
         .bg-juv { background: #f39c12; }
         .bg-adult { background: #27ae60; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px 5px; border-bottom: 1px solid #eee; }
         .hidden { display: none; }
     </style>
@@ -46,6 +45,7 @@
         <button id="btn-scan" class="active-tab" onclick="showTab('scan')">TANK ACCESS</button>
         <button id="btn-data" onclick="showTab('data')">INVENTORY</button>
         <button id="btn-breeds" onclick="showTab('breeds')">SPECIES</button>
+        <button id="btn-pdf" onclick="showTab('pdf')">LABELS</button>
     </div>
 
     <div id="tab-scan" class="tab-content">
@@ -84,6 +84,12 @@
                     <tbody id="data-body"></tbody>
                 </table>
             </div>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button onclick="exportData()" style="background: #6f42c1;">📤 Export JSON</button>
+                <button onclick="document.getElementById('importInput').click()" style="background: #e67e22;">📥 Import JSON</button>
+                <input type="file" id="importInput" class="hidden" accept=".json" onchange="importData(event)">
+            </div>
         </div>
     </div>
 
@@ -100,6 +106,18 @@
         </div>
     </div>
 
+    <div id="tab-pdf" class="tab-content hidden">
+        <div class="card">
+            <h3>Generate Tank Labels</h3>
+            <p style="font-size: 12px; color: #666;">Enter the range of tank numbers to generate barcodes.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input type="number" id="pdf-start" value="1" placeholder="Start #">
+                <input type="number" id="pdf-end" value="20" placeholder="End #">
+            </div>
+            <button onclick="generatePDF()" style="background: #34495e;">Download PDF Labels</button>
+        </div>
+    </div>
+
     <script>
         const db = new Dexie("FishBreedingDB");
         db.version(5).stores({ 
@@ -107,7 +125,6 @@
             scans: 'barcodeId, breed, unit, bornDate' 
         });
 
-        // Initialize App
         async function init() {
             await renderSpeciesList();
             await updateBreedDropdown();
@@ -115,7 +132,6 @@
         }
         window.onload = init;
 
-        // --- NAVIGATION ---
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active-tab'));
@@ -125,7 +141,7 @@
             if(tabName === 'data') loadData();
         }
 
-        // --- SPECIES MANAGEMENT ---
+        // --- SPECIES LOGIC ---
         async function addBreed() {
             const name = document.getElementById('new-breed-name').value;
             const price = parseFloat(document.getElementById('new-breed-price').value) || 0;
@@ -150,9 +166,11 @@
         }
 
         async function deleteBreed(id) {
-            await db.breeds.delete(id);
-            renderSpeciesList();
-            updateBreedDropdown();
+            if(confirm("Delete this species?")) {
+                await db.breeds.delete(id);
+                renderSpeciesList();
+                updateBreedDropdown();
+            }
         }
 
         async function updateBreedDropdown() {
@@ -186,12 +204,10 @@
                 const days = calculateDays(s.bornDate);
                 totalFish += parseInt(s.unit || 0);
                 let badgeClass = days <= 30 ? 'bg-fry' : (days <= 60 ? 'bg-juv' : 'bg-adult');
-                let stageName = days <= 30 ? 'FRY' : (days <= 60 ? 'JUV' : 'ADULT');
-
                 return `<tr>
                     <td>#${s.barcodeId}</td>
                     <td><strong>${s.unit || 0}</strong> ${s.breed}</td>
-                    <td><span class="age-badge ${badgeClass}">${days} Days (${stageName})</span></td>
+                    <td><span class="age-badge ${badgeClass}">${days} Days</span></td>
                     <td><button class="edit-btn" onclick="openEdit('${s.barcodeId}')">✏️</button></td>
                 </tr>`;
             }).join('');
@@ -229,8 +245,72 @@
                 bornDate: document.getElementById('born-date-input').value,
                 unit: document.getElementById('unit-input').value
             });
-            alert("Saved!");
+            alert("Tank Saved!");
             loadData();
+        }
+
+        // --- DATA BACKUP ---
+        async function exportData() {
+            const breeds = await db.breeds.toArray();
+            const scans = await db.scans.toArray();
+            const data = JSON.stringify({ breeds, scans });
+            const blob = new Blob([data], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Aquarium_Backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        async function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (confirm("Importing will overwrite your current database. Continue?")) {
+                        await db.breeds.clear();
+                        await db.scans.clear();
+                        if(data.breeds) await db.breeds.bulkAdd(data.breeds);
+                        if(data.scans) await db.scans.bulkAdd(data.scans);
+                        await init();
+                        alert("Import Successful!");
+                    }
+                } catch (err) {
+                    alert("Error parsing JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- PDF GENERATOR ---
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const start = parseInt(document.getElementById('pdf-start').value);
+            const end = parseInt(document.getElementById('pdf-end').value);
+            
+            let x = 10, y = 10;
+            for (let i = start; i <= end; i++) {
+                const canvas = document.createElement('canvas');
+                bwipjs.toCanvas(canvas, {
+                    bcid: 'code128',
+                    text: i.toString(),
+                    scale: 3,
+                    height: 10,
+                    includetext: true,
+                    textxalign: 'center',
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                doc.addImage(imgData, 'PNG', x, y, 40, 20);
+                
+                x += 50;
+                if (x > 160) { x = 10; y += 30; }
+                if (y > 260) { doc.addPage(); x = 10; y = 10; }
+            }
+            doc.save("Tank_Barcodes.pdf");
         }
     </script>
 </body>
