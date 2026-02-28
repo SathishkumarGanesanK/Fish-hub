@@ -18,31 +18,33 @@
         .stat-card h4 { margin: 0; font-size: 11px; text-transform: uppercase; opacity: 0.9; }
         .stat-card p { margin: 5px 0 0; font-size: 18px; font-weight: bold; }
         
-        button { padding: 14px; border: none; border-radius: 10px; background: #00a8cc; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
+        button { padding: 12px; border: none; border-radius: 10px; background: #00a8cc; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
         button.secondary { background: #adb5bd; }
-        button.danger { background: #ff4d4d; width: auto; padding: 8px 12px; font-size: 14px; margin-top: 0; }
-        button.edit-btn { background: #ffc107; color: #212529; width: auto; padding: 8px 12px; font-size: 14px; margin-top: 0; margin-right: 5px; }
+        button.danger { background: #ff4d4d; width: auto; padding: 6px 10px; font-size: 12px; margin-top: 0; }
+        button.edit-btn { background: #ffc107; color: #212529; width: auto; padding: 6px 10px; font-size: 12px; margin-top: 0; margin-right: 5px; }
+        button.save-btn { background: #28a745; color: white; width: auto; padding: 6px 10px; font-size: 12px; margin-top: 0; margin-right: 5px; }
         button.today-btn { background: #20c997; font-size: 11px; padding: 6px; margin-top: 5px; width: 100%; }
         
-        .manual-entry-zone { display: flex; gap: 5px; margin-bottom: 15px; }
-        .manual-entry-zone input { flex: 2; margin: 0; }
-        .manual-entry-zone button { flex: 1; margin: 0; background: #6c757d; }
-
-        input, select { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 10px; font-size: 16px; background-color: #f8f9fa; }
+        .flex-row { display: flex; gap: 8px; align-items: center; }
+        input, select { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 10px; font-size: 15px; background-color: #f8f9fa; }
         label { font-size: 11px; font-weight: 700; color: #495057; text-transform: uppercase; display: block; margin-top: 10px; }
         #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; display: none; margin-bottom: 15px; }
         .hidden { display: none; }
         
         .nav { display: flex; gap: 5px; position: sticky; top: 0; background: #eef2f3; z-index: 100; padding: 5px 0; }
-        .nav button { flex: 1; font-size: 10px; padding: 12px 2px; margin-top: 0; background: #fff; color: #495057; border: 1px solid #dee2e6; border-radius: 8px; }
+        .nav button { flex: 1; font-size: 9px; padding: 10px 2px; margin-top: 0; background: #fff; color: #495057; border: 1px solid #dee2e6; border-radius: 8px; }
         .nav button.active-tab { background: #00a8cc; color: #fff; border-color: #00a8cc; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
         th, td { border-bottom: 1px solid #f1f3f5; padding: 10px 4px; text-align: left; vertical-align: middle; }
-        .maint-tag { font-size: 9px; color: #7f8c8d; display: block; }
         .age-badge { padding: 3px 7px; border-radius: 4px; font-weight: 800; font-size: 10px; white-space: nowrap; display: inline-block; margin-top: 4px; }
         .status-badge { background: #28a745; color: white; padding: 2px 5px; border-radius: 4px; font-size: 9px; font-weight: bold; display: block; margin-top: 4px; width: fit-content; }
         .rev-text { color: #28a745; font-weight: bold; font-size: 10px; }
+        
+        .breed-item { display: flex; flex-direction: column; padding: 12px; border-bottom: 1px solid #eee; gap: 8px; }
+        .breed-edit-inputs { display: grid; grid-template-columns: 2fr 1fr; gap: 5px; }
+        .breed-edit-inputs input { margin: 0; padding: 6px; font-size: 13px; }
+
         .fry { background: #e3f2fd; color: #0d47a1; }
         .growout { background: #e8f5e9; color: #1b5e20; }
         .adult { background: #fff3e0; color: #e65100; }
@@ -65,16 +67,16 @@
         <div class="card">
             <button id="start-scan-btn" onclick="toggleScanner()" style="background:#343a40;">📷 Start Scanner</button>
             <div id="reader"></div>
-            <div class="manual-entry-zone">
-                <input type="number" id="manual-tank-id" placeholder="Tank #">
-                <button onclick="handleManualEntry()">Open</button>
+            <div class="flex-row" style="margin-top:10px;">
+                <input type="number" id="manual-tank-id" placeholder="Manual Tank #">
+                <button onclick="handleManualEntry()" style="width: 100px; margin:0;">Open</button>
             </div>
         </div>
         <div id="capture-form" class="card hidden">
             <h3 style="margin:0 0 10px 0; color:#00a8cc">Tank Record: #<span id="display-barcode"></span></h3>
             <label>Species</label>
             <select id="breed-dropdown"><option value="">-- Select Species --</option></select>
-            <label>Hatch / Born Date</label>
+            <label>Hatch Date</label>
             <input type="date" id="born-date-input">
             <label>Number of Fish</label>
             <input type="number" id="unit-input" placeholder="Total Count">
@@ -95,7 +97,7 @@
             </div>
         </div>
         <div class="card">
-            <input type="text" id="search-bar" placeholder="🔍 Search Species or Tank..." onkeyup="filterData()">
+            <input type="text" id="inventory-search" placeholder="🔍 Search Inventory..." onkeyup="filterInventory()">
             <div style="overflow-x:auto;">
                 <table id="data-table">
                     <thead><tr><th>Tank</th><th>Species/Age</th><th>Value</th><th>Action</th></tr></thead>
@@ -103,7 +105,7 @@
                 </table>
             </div>
             <div style="display:flex; gap:5px; margin-top:15px;">
-                <button class="secondary" style="font-size: 11px;" onclick="exportFullBackup()">📤 Export</button>
+                <button class="secondary" style="font-size: 11px;" onclick="exportFullBackup()">📤 Export Backup</button>
                 <button class="secondary" style="font-size: 11px;" onclick="document.getElementById('importFile').click()">📥 Import</button>
                 <input type="file" id="importFile" class="hidden" accept=".json" onchange="importFullBackup(event)">
             </div>
@@ -112,10 +114,13 @@
 
     <div id="tab-breeds" class="tab-content hidden">
         <div class="card">
-            <h3>Species Management</h3>
-            <input type="text" id="new-breed-name" placeholder="Species Name (e.g. Blue Guppy)">
-            <input type="number" id="new-breed-price" placeholder="Sell Price per Fish ($)" step="0.01">
-            <button onclick="addBreed()">Add New Species</button>
+            <h3>Add New Species</h3>
+            <input type="text" id="new-breed-name" placeholder="Species Name">
+            <input type="number" id="new-breed-price" placeholder="Price per Fish ($)" step="0.01">
+            <button onclick="addBreed()">Add Species</button>
+        </div>
+        <div class="card">
+            <input type="text" id="breed-search" placeholder="🔍 Search Species..." onkeyup="loadBreeds()">
             <div id="breed-list-container"></div>
         </div>
     </div>
@@ -126,7 +131,7 @@
 
     <script>
         const db = new Dexie("FishBreedingDB");
-        db.version(3).stores({ 
+        db.version(4).stores({ 
             breeds: '++id, name, price', 
             scans: 'barcodeId, breed, unit, bornDate, date, lastWC, lastFed' 
         });
@@ -136,6 +141,20 @@
         async function init() { await updateBreedDropdown(); await updateStats(); await loadData(); }
         window.onload = init;
 
+        // --- NAVIGATION & UI ---
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active-tab'));
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            document.getElementById('btn-' + tabName).classList.add('active-tab');
+            if(tabName === 'data') loadData();
+            if(tabName === 'breeds') loadBreeds();
+        }
+
+        function setToday(id) { document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
+        function resetUI() { document.getElementById('capture-form').classList.add('hidden'); }
+
+        // --- SCANNER & TANK ACCESS ---
         function toggleScanner() {
             const readerDiv = document.getElementById('reader'), btn = document.getElementById('start-scan-btn');
             if (!html5QrCode) {
@@ -154,7 +173,8 @@
         async function handleTankSelection(tankId) {
             document.getElementById('display-barcode').innerText = tankId;
             document.getElementById('capture-form').classList.remove('hidden');
-            clearCaptureForm();
+            document.querySelectorAll('#capture-form input, #capture-form select').forEach(i => i.value = "");
+            
             const existing = await db.scans.get(tankId);
             if(existing) {
                 document.getElementById('breed-dropdown').value = existing.breed || "";
@@ -163,59 +183,6 @@
                 document.getElementById('last-wc-input').value = existing.lastWC || "";
                 document.getElementById('last-fed-input').value = existing.lastFed || "";
             }
-        }
-
-        function clearCaptureForm() {
-            document.getElementById('breed-dropdown').value = ""; document.getElementById('unit-input').value = "";
-            document.getElementById('born-date-input').value = ""; document.getElementById('last-wc-input').value = "";
-            document.getElementById('last-fed-input').value = "";
-        }
-
-        function resetUI() { document.getElementById('capture-form').classList.add('hidden'); }
-        function setToday(id) { document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
-        
-        function getDetailedAge(birthDateStr) {
-            if (!birthDateStr) return { stage: 'N/A', days: 0, class: '' };
-            const diffDays = Math.floor((new Date() - new Date(birthDateStr)) / (1000 * 60 * 60 * 24));
-            let stage = 'FRY', cssClass = 'fry';
-            if (diffDays >= 30 && diffDays < 90) { stage = 'GROW'; cssClass = 'growout'; }
-            else if (diffDays >= 90) { stage = 'ADULT'; cssClass = 'adult'; }
-            return { stage, days: diffDays, class: cssClass };
-        }
-
-        async function updateStats() {
-            document.getElementById('stat-total').innerText = await db.scans.count();
-            document.getElementById('stat-breeds').innerText = await db.breeds.count();
-            
-            // Calculate Total Potential Revenue
-            const scans = await db.scans.toArray();
-            const breeds = await db.breeds.toArray();
-            let totalRev = 0;
-
-            scans.forEach(s => {
-                const age = getDetailedAge(s.bornDate);
-                if (age.days >= 90) {
-                    const breedData = breeds.find(b => b.name === s.breed);
-                    const price = breedData ? breedData.price : 0;
-                    totalRev += (parseInt(s.unit) || 0) * price;
-                }
-            });
-            document.getElementById('stat-revenue').innerText = `$${totalRev.toFixed(2)}`;
-        }
-
-        async function updateBreedDropdown() {
-            const all = await db.breeds.toArray();
-            document.getElementById('breed-dropdown').innerHTML = '<option value="">-- Select --</option>' + 
-                all.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active-tab'));
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
-            document.getElementById('btn-' + tabName).classList.add('active-tab');
-            if(tabName === 'data') loadData();
-            if(tabName === 'breeds') loadBreeds();
         }
 
         async function saveScan() {
@@ -228,41 +195,61 @@
                 lastFed: document.getElementById('last-fed-input').value,
                 date: new Date().toLocaleDateString()
             });
-            resetUI(); updateStats(); loadData(); alert("Saved!");
+            resetUI(); updateStats(); alert("Saved!");
         }
 
-        async function loadData() { allScans = await db.scans.toArray(); filterData(); updateStats(); }
-        
-        async function renderTable(data) {
+        // --- INVENTORY LOGIC ---
+        function getDetailedAge(birthDateStr) {
+            if (!birthDateStr) return { stage: 'N/A', days: 0, class: '' };
+            const diffDays = Math.floor((new Date() - new Date(birthDateStr)) / (1000 * 60 * 60 * 24));
+            let stage = 'FRY', cssClass = 'fry';
+            if (diffDays >= 30 && diffDays < 90) { stage = 'GROW'; cssClass = 'growout'; }
+            else if (diffDays >= 90) { stage = 'ADULT'; cssClass = 'adult'; }
+            return { stage, days: diffDays, class: cssClass };
+        }
+
+        async function updateStats() {
+            document.getElementById('stat-total').innerText = await db.scans.count();
+            document.getElementById('stat-breeds').innerText = await db.breeds.count();
+            const scans = await db.scans.toArray();
             const breeds = await db.breeds.toArray();
-            document.getElementById('data-body').innerHTML = data.map(s => {
+            let totalRev = 0;
+            scans.forEach(s => {
                 const age = getDetailedAge(s.bornDate);
-                const breedData = breeds.find(b => b.name === s.breed);
-                const unitValue = breedData ? (parseInt(s.unit) || 0) * breedData.price : 0;
-                
+                if (age.days >= 90) {
+                    const b = breeds.find(br => br.name === s.breed);
+                    totalRev += (parseInt(s.unit) || 0) * (b ? b.price : 0);
+                }
+            });
+            document.getElementById('stat-revenue').innerText = `$${totalRev.toFixed(2)}`;
+        }
+
+        async function loadData() { allScans = await db.scans.toArray(); filterInventory(); }
+        
+        async function filterInventory() {
+            const term = document.getElementById('inventory-search').value.toLowerCase();
+            const filtered = allScans.filter(s => s.barcodeId.includes(term) || s.breed.toLowerCase().includes(term));
+            const breeds = await db.breeds.toArray();
+            document.getElementById('data-body').innerHTML = filtered.map(s => {
+                const age = getDetailedAge(s.bornDate);
+                const b = breeds.find(br => br.name === s.breed);
+                const unitValue = b ? (parseInt(s.unit) || 0) * b.price : 0;
                 return `<tr>
                     <td>#${s.barcodeId}</td>
                     <td><strong>${s.unit || 0}</strong> ${s.breed}<br>
-                        <span class="age-badge ${age.class}">${age.stage}-${age.days < 10 ? '0'+age.days : age.days}</span>
+                        <span class="age-badge ${age.class}">${age.stage}-${age.days}d</span>
                         ${age.days >= 90 ? '<span class="status-badge">READY</span>' : ''}
                     </td>
                     <td><span class="rev-text">$${unitValue.toFixed(2)}</span></td>
-                    <td style="white-space:nowrap;">
-                        <button class="edit-btn" onclick="editTank('${s.barcodeId}')">✏️</button>
-                        <button class="danger" onclick="deleteScan('${s.barcodeId}')">🗑️</button>
-                    </td>
+                    <td><button class="edit-btn" onclick="editTank('${s.barcodeId}')">✏️</button><button class="danger" onclick="deleteScan('${s.barcodeId}')">🗑️</button></td>
                 </tr>`;
             }).join('');
         }
 
-        function filterData() {
-            const term = document.getElementById('search-bar').value.toLowerCase();
-            renderTable(allScans.filter(s => s.barcodeId.includes(term) || s.breed.toLowerCase().includes(term)));
-        }
-
         function editTank(id) { showTab('scan'); handleTankSelection(id); }
-        async function deleteScan(id) { if(confirm("Delete?")) { await db.scans.delete(id); loadData(); } }
-        
+        async function deleteScan(id) { if(confirm("Delete tank?")) { await db.scans.delete(id); loadData(); updateStats(); } }
+
+        // --- SPECIES MANAGEMENT ---
         async function addBreed() {
             const n = document.getElementById('new-breed-name').value.trim();
             const p = parseFloat(document.getElementById('new-breed-price').value) || 0;
@@ -275,27 +262,73 @@
         }
 
         async function loadBreeds() {
+            const term = document.getElementById('breed-search').value.toLowerCase();
             const all = await db.breeds.toArray();
-            document.getElementById('breed-list-container').innerHTML = all.map(b => `
-                <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; font-size:13px;">
-                    <span><strong>${b.name}</strong> ($${b.price.toFixed(2)})</span>
-                    <button class="danger" onclick="deleteBreed(${b.id})">Del</button>
+            const filtered = all.filter(b => b.name.toLowerCase().includes(term));
+            document.getElementById('breed-list-container').innerHTML = filtered.map(b => `
+                <div class="breed-item" id="breed-row-${b.id}">
+                    <div class="flex-row" style="justify-content:space-between;">
+                        <span style="font-size:14px;"><strong>${b.name}</strong> ($${b.price.toFixed(2)})</span>
+                        <div class="flex-row">
+                            <button class="edit-btn" onclick="showBreedEdit(${b.id}, '${b.name}', ${b.price})">✏️</button>
+                            <button class="danger" onclick="deleteBreed(${b.id})">🗑️</button>
+                        </div>
+                    </div>
                 </div>`).join('');
         }
 
-        async function deleteBreed(id) { if(confirm("Delete?")) { await db.breeds.delete(id); await updateBreedDropdown(); loadBreeds(); } }
-        
+        function showBreedEdit(id, name, price) {
+            const row = document.getElementById(`breed-row-${id}`);
+            row.innerHTML = `
+                <div class="breed-edit-inputs">
+                    <input type="text" id="edit-name-${id}" value="${name}">
+                    <input type="number" id="edit-price-${id}" value="${price}" step="0.01">
+                </div>
+                <div class="flex-row">
+                    <button class="save-btn" onclick="saveBreedEdit(${id})">Save Change</button>
+                    <button class="secondary" style="font-size:12px; padding:6px 10px; margin:0;" onclick="loadBreeds()">Cancel</button>
+                </div>`;
+        }
+
+        async function saveBreedEdit(id) {
+            const newName = document.getElementById(`edit-name-${id}`).value;
+            const newPrice = parseFloat(document.getElementById(`edit-price-${id}`).value) || 0;
+            await db.breeds.update(id, { name: newName, price: newPrice });
+            await updateBreedDropdown();
+            loadBreeds();
+            updateStats();
+        }
+
+        async function updateBreedDropdown() {
+            const all = await db.breeds.toArray();
+            document.getElementById('breed-dropdown').innerHTML = '<option value="">-- Select --</option>' + 
+                all.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        }
+
+        async function deleteBreed(id) { if(confirm("Delete species?")) { await db.breeds.delete(id); await updateBreedDropdown(); loadBreeds(); } }
+
+        // --- BACKUP & EXPORT ---
         async function exportFullBackup() {
             const b = await db.breeds.toArray(), s = await db.scans.toArray();
-            const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify({ breeds: b, scans: s })], { type: 'application/json' }));
-            link.download = `Aquarium_Backup.json`; link.click();
+            const blob = new Blob([JSON.stringify({ breeds: b, scans: s })], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Aquarium_Backup_${new Date().toLocaleDateString()}.json`;
+            link.click();
         }
 
         async function importFullBackup(e) {
             const reader = new FileReader();
             reader.onload = async (ev) => {
-                const d = JSON.parse(ev.target.result);
-                if(confirm("Restore?")) { await db.breeds.clear(); await db.scans.clear(); await db.breeds.bulkAdd(d.breeds); await db.scans.bulkAdd(d.scans); init(); alert("Restored!"); }
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    if(confirm("Restore database? This will replace current data.")) {
+                        await db.breeds.clear(); await db.scans.clear();
+                        if(d.breeds) await db.breeds.bulkAdd(d.breeds);
+                        if(d.scans) await db.scans.bulkAdd(d.scans);
+                        await init(); alert("Restored Successfully!");
+                    }
+                } catch(err) { alert("Invalid Backup File"); }
             };
             reader.readAsText(e.target.files[0]);
         }
